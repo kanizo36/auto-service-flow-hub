@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, LogOut, Settings, User } from 'lucide-react';
 import AlertDialog from './AlertDialog';
+import CustomerForm from './CustomerForm';
 
 interface Customer {
   id: string;
@@ -24,6 +25,7 @@ interface MainDashboardProps {
 const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedAlert, setSelectedAlert] = useState<Customer | null>(null);
+  const [isCustomerFormOpen, setIsCustomerFormOpen] = useState(false);
 
   // בדיקה אם יש התראות פעילות
   const hasAlert = (customer: Customer) => {
@@ -35,6 +37,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
 
   const updateCustomer = (customerId: string, updates: Partial<Customer>) => {
     setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, ...updates } : c));
+  };
+
+  const addCustomer = (customer: Customer) => {
+    setCustomers(prev => [...prev, customer]);
   };
 
   return (
@@ -58,7 +64,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
       <main className="max-w-7xl mx-auto p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold">רשימת לקוחות</h2>
-          <Button className="bg-gradient-primary hover-lift shadow-elegant">
+          <Button 
+            className="bg-gradient-primary hover-lift shadow-elegant"
+            onClick={() => setIsCustomerFormOpen(true)}
+          >
             <Plus className="w-4 h-4 ml-2" />
             לקוח חדש
           </Button>
@@ -136,6 +145,13 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
           onUpdateCustomer={updateCustomer}
         />
       )}
+
+      <CustomerForm
+        isOpen={isCustomerFormOpen}
+        onClose={() => setIsCustomerFormOpen(false)}
+        onSave={addCustomer}
+        currentUser={currentUser}
+      />
     </div>
   );
 };
