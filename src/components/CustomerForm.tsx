@@ -21,6 +21,9 @@ interface Customer {
   isRentalCar: boolean;
   rentalCarNumber?: string;
   advisorId: string;
+  expectedEndTime?: string;
+  entryReason?: string;
+  notes?: string;
 }
 
 interface CustomerFormProps {
@@ -36,9 +39,12 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, onClose, onSave, cu
     phone: '',
     carNumber: '',
     serviceDate: new Date(),
-    status: 'ממתין לשירות',
+    status: 'ממתין לכניסה',
     isRentalCar: false,
-    rentalCarNumber: ''
+    rentalCarNumber: '',
+    expectedEndTime: '',
+    entryReason: '',
+    notes: ''
   });
 
   const handleSave = () => {
@@ -51,7 +57,10 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, onClose, onSave, cu
       status: formData.status,
       isRentalCar: formData.isRentalCar,
       rentalCarNumber: formData.isRentalCar ? formData.rentalCarNumber : undefined,
-      advisorId: currentUser.id
+      advisorId: currentUser.id,
+      expectedEndTime: formData.expectedEndTime,
+      entryReason: formData.entryReason,
+      notes: formData.notes
     };
 
     onSave(newCustomer);
@@ -62,9 +71,12 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, onClose, onSave, cu
       phone: '',
       carNumber: '',
       serviceDate: new Date(),
-      status: 'ממתין לשירות',
+      status: 'ממתין לכניסה',
       isRentalCar: false,
-      rentalCarNumber: ''
+      rentalCarNumber: '',
+      expectedEndTime: '',
+      entryReason: '',
+      notes: ''
     });
     
     onClose();
@@ -142,9 +154,12 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, onClose, onSave, cu
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ממתין לשירות">ממתין לשירות</SelectItem>
-                <SelectItem value="בטיפול">בטיפול</SelectItem>
-                <SelectItem value="הושלם">הושלם</SelectItem>
+                <SelectItem value="ממתין לכניסה">ממתין לכניסה</SelectItem>
+                <SelectItem value="בעבודה">בעבודה</SelectItem>
+                <SelectItem value="טסט">טסט</SelectItem>
+                <SelectItem value="מוכן">מוכן</SelectItem>
+                <SelectItem value="רחיצה">רחיצה</SelectItem>
+                <SelectItem value="ממתין לחלק">ממתין לחלק</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -169,6 +184,37 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, onClose, onSave, cu
               />
             </div>
           )}
+
+          <div>
+            <Label htmlFor="expectedEndTime">צפי סיום שעה</Label>
+            <Input
+              id="expectedEndTime"
+              type="time"
+              value={formData.expectedEndTime}
+              onChange={(e) => setFormData({ ...formData, expectedEndTime: e.target.value })}
+              placeholder="הזן שעת סיום צפויה"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="entryReason">סיבת כניסה</Label>
+            <Input
+              id="entryReason"
+              value={formData.entryReason}
+              onChange={(e) => setFormData({ ...formData, entryReason: e.target.value })}
+              placeholder="הזן סיבת כניסה"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="notes">הערות</Label>
+            <Input
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="הזן הערות"
+            />
+          </div>
 
           <div className="flex gap-2 pt-4">
             <Button onClick={handleSave} className="flex-1">
