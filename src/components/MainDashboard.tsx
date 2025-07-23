@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Plus, LogOut, Settings, User, Search } from 'lucide-react';
+import { Plus, LogOut, Settings, User, Search, Trash2, Download } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import * as XLSX from 'xlsx';
 import AlertDialog from './AlertDialog';
 import CustomerForm from './CustomerForm';
 
@@ -10,6 +12,7 @@ interface Customer {
   id: string;
   name: string;
   phone: string;
+  carModel: string;
   carNumber: string;
   serviceDate: string;
   status: string;
@@ -30,6 +33,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedAlert, setSelectedAlert] = useState<Customer | null>(null);
   const [isCustomerFormOpen, setIsCustomerFormOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // בדיקה אם יש התראות פעילות
@@ -63,6 +68,41 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
 
   const addCustomer = (customer: Customer) => {
     setCustomers(prev => [...prev, customer]);
+  };
+
+  const editCustomer = (customer: Customer) => {
+    setCustomers(prev => prev.map(c => c.id === customer.id ? customer : c));
+    setEditingCustomer(null);
+  };
+
+  const handleDeleteCustomer = () => {
+    if (deleteCustomer) {
+      setCustomers(prev => prev.filter(c => c.id !== deleteCustomer.id));
+      setDeleteCustomer(null);
+    }
+  };
+
+  const exportToExcel = () => {
+    const data = customers.map(customer => ({
+      'שם לקוח': customer.name,
+      'טלפון': customer.phone,
+      'דגם רכב': customer.carModel,
+      'מספר רכב': customer.carNumber,
+      'תאריך שירות': customer.serviceDate,
+      'סטטוס': customer.status,
+      'רכב שכור': customer.isRentalCar ? 'כן' : 'לא',
+      'מספר רכב שכור': customer.rentalCarNumber || '',
+      'צפי סיום שעה': customer.expectedEndTime || '',
+      'סיבת כניסה': customer.entryReason || '',
+      'הערות': customer.notes || ''
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'לקוחות');
+    
+    const today = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(workbook, `לקוחות_${today}.xlsx`);
   };
 
   // פילטור לקוחות לפי חיפוש
@@ -115,13 +155,23 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
                 className="pr-10 w-64"
               />
             </div>
-            <Button 
-              className="bg-gradient-primary hover-lift shadow-elegant"
-              onClick={() => setIsCustomerFormOpen(true)}
-            >
-              <Plus className="w-4 h-4 ml-2" />
-              לקוח חדש
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline"
+                onClick={exportToExcel}
+                className="shadow-card"
+              >
+                <Download className="w-4 h-4 ml-2" />
+                ייצא לאקסל
+              </Button>
+              <Button 
+                className="bg-gradient-primary hover-lift shadow-elegant"
+                onClick={() => setIsCustomerFormOpen(true)}
+              >
+                <Plus className="w-4 h-4 ml-2" />
+                לקוח חדש
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -136,18 +186,20 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
                   <tr className="border-b">
                     <th className="text-right p-3">שם לקוח</th>
                     <th className="text-right p-3">טלפון</th>
+                    <th className="text-right p-3">דגם רכב</th>
                     <th className="text-right p-3">מספר רכב</th>
                     <th className="text-right p-3">תאריך שירות</th>
                     <th className="text-right p-3">צפי סיום</th>
                     <th className="text-right p-3">סיבת כניסה</th>
                     <th className="text-right p-3">סטטוס</th>
                     <th className="text-right p-3">התראות</th>
+                    <th className="text-right p-3">פעולות</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredCustomers.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-center p-8 text-muted-foreground">
+                      <td colSpan={10} className="text-center p-8 text-muted-foreground">
                         {searchTerm ? 'לא נמצאו תוצאות חיפוש' : 'אין לקוחות במערכת. הוסף לקוח ראשון!'}
                       </td>
                     </tr>
@@ -156,11 +208,12 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
                       <tr key={customer.id} className="border-b hover:bg-muted/50 transition-smooth">
                         <td 
                           className="p-3 font-bold text-lg cursor-pointer hover:text-primary"
-                          onClick={() => setSelectedAlert(customer)}
+                          onClick={() => setEditingCustomer(customer)}
                         >
                           {customer.name}
                         </td>
                         <td className="p-3">{customer.phone}</td>
+                        <td className="p-3">{customer.carModel}</td>
                         <td className="p-3 flex items-center gap-2">
                           {customer.carNumber}
                           {hasAlert(customer) && <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>}
@@ -185,6 +238,16 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
                             </Button>
                           )}
                         </td>
+                        <td className="p-3">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => setDeleteCustomer(customer)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -204,11 +267,44 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
       )}
 
       <CustomerForm
-        isOpen={isCustomerFormOpen}
-        onClose={() => setIsCustomerFormOpen(false)}
+        isOpen={isCustomerFormOpen || !!editingCustomer}
+        onClose={() => {
+          setIsCustomerFormOpen(false);
+          setEditingCustomer(null);
+        }}
         onSave={addCustomer}
+        onEdit={editCustomer}
+        editCustomer={editingCustomer}
         currentUser={currentUser}
       />
+
+      <Dialog open={!!deleteCustomer} onOpenChange={() => setDeleteCustomer(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>מחיקת לקוח</DialogTitle>
+            <DialogDescription>
+              האם אתה בטוח שברצונך למחוק את הכרטיס של {deleteCustomer?.name}?
+              פעולה זו לא ניתנת לביטול.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 pt-4">
+            <Button 
+              onClick={handleDeleteCustomer} 
+              variant="destructive" 
+              className="flex-1"
+            >
+              מחק
+            </Button>
+            <Button 
+              onClick={() => setDeleteCustomer(null)} 
+              variant="outline" 
+              className="flex-1"
+            >
+              ביטול
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

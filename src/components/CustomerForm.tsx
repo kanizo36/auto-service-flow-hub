@@ -15,6 +15,7 @@ interface Customer {
   id: string;
   name: string;
   phone: string;
+  carModel: string;
   carNumber: string;
   serviceDate: string;
   status: string;
@@ -30,13 +31,16 @@ interface CustomerFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (customer: Customer) => void;
+  onEdit?: (customer: Customer) => void;
+  editCustomer?: Customer | null;
   currentUser: { id: string; name: string };
 }
 
-const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, onClose, onSave, currentUser }) => {
+const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, onClose, onSave, onEdit, editCustomer, currentUser }) => {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
+    carModel: 'פיג\'ו',
     carNumber: '',
     serviceDate: new Date(),
     status: 'ממתין לכניסה',
@@ -47,37 +51,73 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, onClose, onSave, cu
     notes: ''
   });
 
-  const handleSave = () => {
-    const newCustomer: Customer = {
-      id: Date.now().toString(),
-      name: formData.name,
-      phone: formData.phone,
-      carNumber: formData.carNumber,
-      serviceDate: format(formData.serviceDate, 'yyyy-MM-dd'),
-      status: formData.status,
-      isRentalCar: formData.isRentalCar,
-      rentalCarNumber: formData.isRentalCar ? formData.rentalCarNumber : undefined,
-      advisorId: currentUser.id,
-      expectedEndTime: formData.expectedEndTime,
-      entryReason: formData.entryReason,
-      notes: formData.notes
-    };
+  React.useEffect(() => {
+    if (editCustomer) {
+      setFormData({
+        name: editCustomer.name,
+        phone: editCustomer.phone,
+        carModel: editCustomer.carModel,
+        carNumber: editCustomer.carNumber,
+        serviceDate: new Date(editCustomer.serviceDate),
+        status: editCustomer.status,
+        isRentalCar: editCustomer.isRentalCar,
+        rentalCarNumber: editCustomer.rentalCarNumber || '',
+        expectedEndTime: editCustomer.expectedEndTime || '',
+        entryReason: editCustomer.entryReason || '',
+        notes: editCustomer.notes || ''
+      });
+    } else {
+      setFormData({
+        name: '',
+        phone: '',
+        carModel: 'פיג\'ו',
+        carNumber: '',
+        serviceDate: new Date(),
+        status: 'ממתין לכניסה',
+        isRentalCar: false,
+        rentalCarNumber: '',
+        expectedEndTime: '',
+        entryReason: '',
+        notes: ''
+      });
+    }
+  }, [editCustomer, isOpen]);
 
-    onSave(newCustomer);
-    
-    // Reset form
-    setFormData({
-      name: '',
-      phone: '',
-      carNumber: '',
-      serviceDate: new Date(),
-      status: 'ממתין לכניסה',
-      isRentalCar: false,
-      rentalCarNumber: '',
-      expectedEndTime: '',
-      entryReason: '',
-      notes: ''
-    });
+  const handleSave = () => {
+    if (editCustomer && onEdit) {
+      const updatedCustomer: Customer = {
+        ...editCustomer,
+        name: formData.name,
+        phone: formData.phone,
+        carModel: formData.carModel,
+        carNumber: formData.carNumber,
+        serviceDate: format(formData.serviceDate, 'yyyy-MM-dd'),
+        status: formData.status,
+        isRentalCar: formData.isRentalCar,
+        rentalCarNumber: formData.isRentalCar ? formData.rentalCarNumber : undefined,
+        expectedEndTime: formData.expectedEndTime,
+        entryReason: formData.entryReason,
+        notes: formData.notes
+      };
+      onEdit(updatedCustomer);
+    } else {
+      const newCustomer: Customer = {
+        id: Date.now().toString(),
+        name: formData.name,
+        phone: formData.phone,
+        carModel: formData.carModel,
+        carNumber: formData.carNumber,
+        serviceDate: format(formData.serviceDate, 'yyyy-MM-dd'),
+        status: formData.status,
+        isRentalCar: formData.isRentalCar,
+        rentalCarNumber: formData.isRentalCar ? formData.rentalCarNumber : undefined,
+        advisorId: currentUser.id,
+        expectedEndTime: formData.expectedEndTime,
+        entryReason: formData.entryReason,
+        notes: formData.notes
+      };
+      onSave(newCustomer);
+    }
     
     onClose();
   };
@@ -86,7 +126,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, onClose, onSave, cu
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>הוספת לקוח חדש</DialogTitle>
+          <DialogTitle>{editCustomer ? 'עריכת לקוח' : 'הוספת לקוח חדש'}</DialogTitle>
           <DialogDescription>
             מלא את פרטי הלקוח. שדות ריקים מותרים.
           </DialogDescription>
@@ -111,6 +151,23 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, onClose, onSave, cu
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               placeholder="הזן מספר טלפון"
             />
+          </div>
+
+          <div>
+            <Label>דגם רכב</Label>
+            <Select value={formData.carModel} onValueChange={(value) => setFormData({ ...formData, carModel: value })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="פיג'ו">פיג'ו</SelectItem>
+                <SelectItem value="סיטרואן">סיטרואן</SelectItem>
+                <SelectItem value="MG">MG</SelectItem>
+                <SelectItem value="DS">DS</SelectItem>
+                <SelectItem value="אופל">אופל</SelectItem>
+                <SelectItem value="MI">MI</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
@@ -218,7 +275,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, onClose, onSave, cu
 
           <div className="flex gap-2 pt-4">
             <Button onClick={handleSave} className="flex-1">
-              שמור לקוח
+              {editCustomer ? 'שמור שינויים' : 'שמור לקוח'}
             </Button>
             <Button onClick={onClose} variant="outline" className="flex-1">
               ביטול
