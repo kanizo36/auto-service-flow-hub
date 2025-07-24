@@ -23,26 +23,39 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     { id: 'advisor13', name: 'יועץ שירות 13', password: '13' },
     { id: 'advisor39', name: 'יועץ שירות 39', password: '39' },
   ];
+import { createClient } from '@supabase/supabase-js';
 
-  const handleLogin = () => {
-    if (!userId || !password) {
-      setError('אנא מלא את כל השדות');
-      return;
-    }
+const supabase = createClient(
+  'https://nadvxvuwblgtkyvicvhg.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hZHZ4dnV3YmxndGt5dmljdmhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzNDEwNTYsImV4cCI6MjA2ODkxNzA1Nn0.Td3xqU9REXCR-q2EgnHzUknF_CjKueZ6m2N_oWnNcws'
+);
 
-    const user = users.find(u => u.id === userId && u.password === password);
-    if (user) {
-      onLogin(user.id, user.name);
+const handleLogin = async () => {
+  if (!userId || !password) {
+    setError('אנא מלא את כל השדות');
+    return;
+  }
+
+  const user = users.find(u => u.id === userId && u.password === password);
+  if (user) {
+    const { error } = await supabase.from('001193').insert([
+      {
+        username: user.id,
+        password: user.password,
+        notes: 'כניסה למערכת בתאריך ' + new Date().toLocaleString()
+      }
+    ]);
+
+    if (error) {
+      setError('שגיאה בשמירה: ' + error.message);
     } else {
-      setError('שם משתמש או סיסמה שגויים');
+      onLogin(user.id, user.name);
     }
-  };
+  } else {
+    setError('שם משתמש או סיסמה שגויים');
+  }
+};
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleLogin();
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary-glow/10">
