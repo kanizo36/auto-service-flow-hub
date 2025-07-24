@@ -38,6 +38,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
   const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [weeklyAlert, setWeeklyAlert] = useState<Customer | null>(null);
+  const [preEndTimeAlert, setPreEndTimeAlert] = useState<Customer | null>(null);
 
   // טעינת נתונים מאחסון מקומי בהתחלה
   useEffect(() => {
@@ -52,10 +53,12 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
     localStorage.setItem('customers', JSON.stringify(customers));
   }, [customers]);
 
-  // בדיקת התראות שבועיות
+  // בדיקת התראות שבועיות והתראות חצי שעה לפני צפי סיום
   useEffect(() => {
-    const checkWeeklyAlerts = () => {
+    const checkAlerts = () => {
       const now = new Date();
+      
+      // בדיקת התראות שבועיות
       const weeklyAlertCustomer = customers.find(customer => {
         if (customer.status !== 'ממתין לחלק') return false;
         
@@ -75,16 +78,34 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
         return true;
       });
       
-      if (weeklyAlertCustomer) {
+      if (weeklyAlertCustomer && !weeklyAlert) {
         setWeeklyAlert(weeklyAlertCustomer);
+      }
+
+      // בדיקת התראות חצי שעה לפני צפי סיום
+      const preEndAlert = customers.find(customer => {
+        if (!customer.expectedEndTime) return false;
+        
+        const [hours, minutes] = customer.expectedEndTime.split(':').map(Number);
+        const expectedDateTime = new Date();
+        expectedDateTime.setHours(hours, minutes, 0, 0);
+        
+        const thirtyMinutesBefore = new Date(expectedDateTime.getTime() - 30 * 60 * 1000);
+        const fiveMinutesAfter = new Date(expectedDateTime.getTime() + 5 * 60 * 1000);
+        
+        return now >= thirtyMinutesBefore && now <= fiveMinutesAfter;
+      });
+      
+      if (preEndAlert && !preEndTimeAlert) {
+        setPreEndTimeAlert(preEndAlert);
       }
     };
 
-    const interval = setInterval(checkWeeklyAlerts, 60000); // בדיקה כל דקה
-    checkWeeklyAlerts(); // בדיקה ראשונית
+    const interval = setInterval(checkAlerts, 60000); // בדיקה כל דקה
+    checkAlerts(); // בדיקה ראשונית
 
     return () => clearInterval(interval);
-  }, [customers]);
+  }, [customers, weeklyAlert, preEndTimeAlert]);
 
   // בדיקה אם יש התראות פעילות
   const hasAlert = (customer: Customer) => {
@@ -181,6 +202,17 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
     }
   };
 
+  // בדיקה אם רכב נמצא מעל שבוע עם סטטוס "ממתין לחלק"
+  const isOverdueWaitingForParts = (customer: Customer) => {
+    if (customer.status !== 'ממתין לחלק') return false;
+    
+    const now = new Date();
+    const serviceDate = new Date(customer.serviceDate);
+    const daysSinceService = Math.floor((now.getTime() - serviceDate.getTime()) / (1000 * 3600 * 24));
+    
+    return daysSinceService >= 7;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/30">
       <header className="bg-gradient-primary shadow-elegant p-4">
@@ -261,8 +293,15 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
                       </td>
                     </tr>
                   ) : (
-                    filteredCustomers.map(customer => (
-                      <tr key={customer.id} className="border-b hover:bg-muted/50 transition-smooth">
+                     filteredCustomers.map(customer => (
+                       <tr 
+                         key={customer.id} 
+                         className={`border-b hover:bg-muted/50 transition-smooth ${
+                           isOverdueWaitingForParts(customer) 
+                             ? 'bg-red-50 border-red-200 animate-pulse' 
+                             : ''
+                         }`}
+                       >
                         <td 
                           className="p-3 font-bold text-lg cursor-pointer hover:text-primary"
                           onClick={() => setEditingCustomer(customer)}
@@ -379,6 +418,40 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
           <div className="flex gap-2 pt-4">
             <Button 
               onClick={handleWeeklyAlertAck} 
+              className="flex-1"
+            >
+              אישור
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* התראה חצי שעה לפני צפי סיום */}
+      <Dialog open={!!preEndTimeAlert} onOpenChange={() => setPreEndTimeAlert(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-orange-600">⏰ התראת צפי סיום</DialogTitle>
+            <DialogDescription className="text-right">
+              צפי סיום לרכב של {preEndTimeAlert?.name} ({preEndTimeAlert?.carNumber}) בעוד חצי שעה!
+              <br />
+              <span className="text-sm text-muted-foreground">
+                שעת צפי סיום: {preEndTimeAlert?.expectedEndTime}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 pt-4">
+            <Button 
+              onClick={() => {
+                setEditingCustomer(preEndTimeAlert);
+                setPreEndTimeAlert(null);
+              }}
+              variant="outline"
+              className="flex-1"
+            >
+              עדכן שעה
+            </Button>
+            <Button 
+              onClick={() => setPreEndTimeAlert(null)} 
               className="flex-1"
             >
               אישור
