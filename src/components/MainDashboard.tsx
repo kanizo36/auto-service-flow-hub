@@ -22,6 +22,7 @@ interface Customer {
   expectedEndTime?: string;
   entryReason?: string;
   notes?: string;
+  lastWeeklyAlertAck?: string; // תאריך אישור התראה שבועית אחרון
 }
 
 interface MainDashboardProps {
@@ -36,6 +37,54 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [weeklyAlert, setWeeklyAlert] = useState<Customer | null>(null);
+
+  // טעינת נתונים מאחסון מקומי בהתחלה
+  useEffect(() => {
+    const savedCustomers = localStorage.getItem('customers');
+    if (savedCustomers) {
+      setCustomers(JSON.parse(savedCustomers));
+    }
+  }, []);
+
+  // שמירה אוטומטית של נתונים בזמן אמת
+  useEffect(() => {
+    localStorage.setItem('customers', JSON.stringify(customers));
+  }, [customers]);
+
+  // בדיקת התראות שבועיות
+  useEffect(() => {
+    const checkWeeklyAlerts = () => {
+      const now = new Date();
+      const weeklyAlertCustomer = customers.find(customer => {
+        if (customer.status !== 'ממתין לחלק') return false;
+        
+        const serviceDate = new Date(customer.serviceDate);
+        const daysSinceService = Math.floor((now.getTime() - serviceDate.getTime()) / (1000 * 3600 * 24));
+        
+        // בדיקה אם עברו 7 ימים מתאריך השירות
+        if (daysSinceService < 7) return false;
+        
+        // בדיקה אם עברו 7 ימים מהאישור האחרון
+        if (customer.lastWeeklyAlertAck) {
+          const lastAck = new Date(customer.lastWeeklyAlertAck);
+          const daysSinceAck = Math.floor((now.getTime() - lastAck.getTime()) / (1000 * 3600 * 24));
+          return daysSinceAck >= 7;
+        }
+        
+        return true;
+      });
+      
+      if (weeklyAlertCustomer) {
+        setWeeklyAlert(weeklyAlertCustomer);
+      }
+    };
+
+    const interval = setInterval(checkWeeklyAlerts, 60000); // בדיקה כל דקה
+    checkWeeklyAlerts(); // בדיקה ראשונית
+
+    return () => clearInterval(interval);
+  }, [customers]);
 
   // בדיקה אם יש התראות פעילות
   const hasAlert = (customer: Customer) => {
@@ -79,6 +128,14 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
     if (deleteCustomer) {
       setCustomers(prev => prev.filter(c => c.id !== deleteCustomer.id));
       setDeleteCustomer(null);
+    }
+  };
+
+  const handleWeeklyAlertAck = () => {
+    if (weeklyAlert) {
+      const now = new Date().toISOString();
+      updateCustomer(weeklyAlert.id, { lastWeeklyAlertAck: now });
+      setWeeklyAlert(null);
     }
   };
 
@@ -301,6 +358,30 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
               className="flex-1"
             >
               ביטול
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* התראה שבועית */}
+      <Dialog open={!!weeklyAlert} onOpenChange={() => setWeeklyAlert(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">🚨 התראת איחור</DialogTitle>
+            <DialogDescription className="text-right">
+              שימו לב: הרכב של {weeklyAlert?.name} ({weeklyAlert?.carNumber}) נמצא במערכת מעל שבוע ומחכה לחלקים!
+              <br />
+              <span className="text-sm text-muted-foreground">
+                תאריך כניסה: {weeklyAlert?.serviceDate}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 pt-4">
+            <Button 
+              onClick={handleWeeklyAlertAck} 
+              className="flex-1"
+            >
+              אישור
             </Button>
           </div>
         </DialogContent>
