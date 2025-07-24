@@ -147,7 +147,12 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
 
   const handleDeleteCustomer = () => {
     if (deleteCustomer) {
-      setCustomers(prev => prev.filter(c => c.id !== deleteCustomer.id));
+      // בדיקת הרשאות למחיקה - מנהל או בעלים של הכרטיס
+      const canDelete = currentUser.id === 'manager' || deleteCustomer.advisorId === currentUser.id;
+      
+      if (canDelete) {
+        setCustomers(prev => prev.filter(c => c.id !== deleteCustomer.id));
+      }
       setDeleteCustomer(null);
     }
   };
@@ -161,7 +166,12 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
   };
 
   const exportToExcel = () => {
-    const data = customers.map(customer => ({
+    // פילטור לפי הרשאות לפני ייצוא
+    const userCustomers = customers.filter(customer => 
+      currentUser.id === 'manager' || customer.advisorId === currentUser.id
+    );
+    
+    const data = userCustomers.map(customer => ({
       'שם לקוח': customer.name,
       'טלפון': customer.phone,
       'דגם רכב': customer.carModel,
@@ -183,11 +193,17 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
     XLSX.writeFile(workbook, `לקוחות_${today}.xlsx`);
   };
 
-  // פילטור לקוחות לפי חיפוש
-  const filteredCustomers = customers.filter(customer => 
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.carNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // פילטור לקוחות לפי חיפוש והרשאות משתמש
+  const filteredCustomers = customers.filter(customer => {
+    // בדיקת הרשאות - מנהל רואה הכל, יועצים רואים רק את שלהם
+    const hasPermission = currentUser.id === 'manager' || customer.advisorId === currentUser.id;
+    
+    // בדיקת חיפוש
+    const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.carNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return hasPermission && matchesSearch;
+  });
 
   // קבלת צבע הסטטוס
   const getStatusColor = (status: string) => {
@@ -302,12 +318,21 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
                              : ''
                          }`}
                        >
-                        <td 
-                          className="p-3 font-bold text-lg cursor-pointer hover:text-primary"
-                          onClick={() => setEditingCustomer(customer)}
-                        >
-                          {customer.name}
-                        </td>
+                         <td 
+                           className={`p-3 font-bold text-lg ${
+                             (currentUser.id === 'manager' || customer.advisorId === currentUser.id) 
+                               ? 'cursor-pointer hover:text-primary' 
+                               : 'cursor-default'
+                           }`}
+                           onClick={() => {
+                             // עריכה רק למנהל או בעלים של הכרטיס
+                             if (currentUser.id === 'manager' || customer.advisorId === currentUser.id) {
+                               setEditingCustomer(customer);
+                             }
+                           }}
+                         >
+                           {customer.name}
+                         </td>
                         <td className="p-3">{customer.phone}</td>
                         <td className="p-3">{customer.carModel}</td>
                         <td className="p-3 flex items-center gap-2">
@@ -334,16 +359,19 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ currentUser, onLogout }) 
                             </Button>
                           )}
                         </td>
-                        <td className="p-3">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => setDeleteCustomer(customer)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </td>
+                         <td className="p-3">
+                           {/* הצגת כפתור מחיקה רק למנהל או בעלים של הכרטיס */}
+                           {(currentUser.id === 'manager' || customer.advisorId === currentUser.id) && (
+                             <Button
+                               size="sm"
+                               variant="ghost"
+                               className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                               onClick={() => setDeleteCustomer(customer)}
+                             >
+                               <Trash2 className="w-4 h-4" />
+                             </Button>
+                           )}
+                         </td>
                       </tr>
                     ))
                   )}

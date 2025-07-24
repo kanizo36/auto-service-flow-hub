@@ -17,7 +17,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
   // משתמשים מוגדרים מראש
   const users = [
-    { id: 'manager', name: 'מנהל', password: 'admin' },
+    { id: 'manager', name: 'מנהל', password: '33' },
     { id: 'advisor34', name: 'יועץ שירות 34', password: '34' },
     { id: 'advisor12', name: 'יועץ שירות 12', password: '12' },
     { id: 'advisor13', name: 'יועץ שירות 13', password: '13' },
