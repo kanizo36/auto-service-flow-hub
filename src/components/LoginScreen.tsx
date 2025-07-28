@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Car, LogIn } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LoginScreenProps {
   onLogin: (userId: string, userName: string) => void;
@@ -23,14 +24,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     { id: 'advisor13', name: 'יועץ שירות 13', password: '13' },
     { id: 'advisor39', name: 'יועץ שירות 39', password: '39' },
   ];
-import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  'https://nadvxvuwblgtkyvicvhg.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hZHZ4dnV3YmxndGt5dmljdmhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzNDEwNTYsImV4cCI6MjA2ODkxNzA1Nn0.Td3xqU9REXCR-q2EgnHzUknF_CjKueZ6m2N_oWnNcws'
-);
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleLogin();
+    }
+  };
 
-const handleLogin = async () => {
+  const handleLogin = async () => {
   if (!userId || !password) {
     setError('אנא מלא את כל השדות');
     return;
